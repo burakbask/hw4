@@ -3,13 +3,14 @@ package game;
 import interfaces.ITerrainObject;
 import objects.*;
 import enums.Direction;
+import interfaces.IHazard;
+
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
-import java.util.Collections;
-import java.util.Comparator;
-import interfaces.IHazard;
 
 public class GameManager {
 
@@ -17,7 +18,7 @@ public class GameManager {
     private List<Penguin> penguins;
     private Penguin playerPenguin; // P2 (Oyuncu)
     private final int MAX_TURNS = 4;
-    private final int ROW_COUNT = 10; // Code 1'deki varsayılan boyut
+    private final int ROW_COUNT = 10;
     private final int COL_COUNT = 10;
 
     public GameManager() {
@@ -36,7 +37,6 @@ public class GameManager {
         terrain.generateFood();
     }
 
-    // --- GÜNCELLENMİŞ STARTGAME METODU ---
     public void startGame() {
         Scanner scanner = new Scanner(System.in);
         Random rng = new Random();
@@ -51,11 +51,9 @@ public class GameManager {
                 if (!p.isActive()) continue; // Elenen penguenleri atla
 
                 String answer;
-                // --- BAŞLIK FORMATI (Code 2 Tarzı) ---
-                // Örnek: *** Turn 1 – P2 (Your Penguin):
+                // --- BAŞLIK FORMATI ---
                 String role = (p == playerPenguin) ? " (Your Penguin)" : "";
                 System.out.print("*** Turn " + turn + " - " + p.getSymbol() + role);
-
                 System.out.println(":\n");
 
                 // --- YAPAY ZEKA (AI) TURU ---
@@ -63,9 +61,8 @@ public class GameManager {
 
                     // 1. Özel Yetenek Kullanımı (RNG)
                     boolean useAbility = false;
-                    // Not: Penguin sınıfında isAbilityUsed() metodu olduğunu varsayıyoruz, yoksa bu kontrolü kaldırabilirsiniz.
-                    // Şimdilik sadece şans faktörünü ekliyorum:
-                    if (rng.nextInt(100) < 30) { // %30 Şans
+                    // %30 Şansla yetenek kullanımı
+                    if (rng.nextInt(100) < 30) {
                         useAbility = true;
                     }
 
@@ -75,10 +72,10 @@ public class GameManager {
                         System.out.println(p.getSymbol() + " does NOT use its special action.");
                     }
 
-                    // 2. Yön Belirleme (Code 2'deki Gelismiş Tarama Mantığı)
+                    // 2. Yön Belirleme (AI Tarama Mantığı)
                     Direction[] directions = Direction.values();
 
-                    // Yönleri karıştır (bias azaltmak için)
+                    // Yönleri karıştır (Sürekli aynı yöne gitmesin diye)
                     for(int i = 0; i < directions.length; i++) {
                         int index = rng.nextInt(directions.length);
                         Direction temp = directions[index];
@@ -90,22 +87,23 @@ public class GameManager {
                     ArrayList<Direction> directionsWithHazard = new ArrayList<>();
 
                     int[] pos = terrain.getPosition(p);
+                    // Eğer penguen elendiyse veya haritada yoksa hata vermesin
+                    if (pos == null) continue;
+
                     int pRow = pos[0];
                     int pCol = pos[1];
 
                     for(Direction d : directions) {
                         switch (d) {
                             case UP:
-                                // Yukarı bak
                                 for (int r = pRow - 1; r >= 0; r--) {
                                     ITerrainObject o = terrain.getObjectAt(r, pCol);
-                                    if (o == null) continue; // Boşsa devam et
+                                    if (o == null) continue;
                                     if (o instanceof Food) { directionsWithFood.add(d); break; }
                                     else if (o instanceof IHazard || o instanceof Penguin) { directionsWithHazard.add(d); break; }
                                 }
                                 break;
                             case DOWN:
-                                // Aşağı bak
                                 for (int r = pRow + 1; r < ROW_COUNT; r++) {
                                     ITerrainObject o = terrain.getObjectAt(r, pCol);
                                     if (o == null) continue;
@@ -114,7 +112,6 @@ public class GameManager {
                                 }
                                 break;
                             case LEFT:
-                                // Sola bak
                                 for (int c = pCol - 1; c >= 0; c--) {
                                     ITerrainObject o = terrain.getObjectAt(pRow, c);
                                     if (o == null) continue;
@@ -123,7 +120,6 @@ public class GameManager {
                                 }
                                 break;
                             case RIGHT:
-                                // Sağa bak
                                 for (int c = pCol + 1; c < COL_COUNT; c++) {
                                     ITerrainObject o = terrain.getObjectAt(pRow, c);
                                     if (o == null) continue;
@@ -135,7 +131,7 @@ public class GameManager {
                     }
 
                     // Öncelik: Yemek > Tehlike (Durmak için) > Rastgele
-                    Direction bestDir = directions[0]; // Varsayılan rastgele
+                    Direction bestDir = directions[0];
 
                     if (!directionsWithFood.isEmpty()) {
                         bestDir = directionsWithFood.get(0);
@@ -156,7 +152,7 @@ public class GameManager {
                 // --- OYUNCU TURU ---
                 else {
 
-                    // Özel Yetenek Sorusu (Loop ile doğrulama)
+                    // Özel Yetenek Sorusu
                     do {
                         System.out.println("Will " + p.getSymbol() + " use its special action? Answer with Y or N --> ");
                         answer = scanner.next().trim().toUpperCase();
@@ -167,7 +163,7 @@ public class GameManager {
                         System.out.println("Special action won't be used this turn.");
                     }
 
-                    // Yön Sorusu (Loop ile doğrulama)
+                    // Yön Sorusu
                     String dirInput;
                     do {
                         System.out.println("Which direction will " + p.getSymbol() + " move? Answer with U (Up), D (Down), L (Left), R (Right) --> ");
@@ -202,7 +198,7 @@ public class GameManager {
         printScoreboard();
     }
 
-    // Başlangıç Durumu (Initial State)
+    // Başlangıç Durumu
     public void printGameState() {
         System.out.println("The initial icy terrain grid:");
         terrain.printTerrain();
@@ -223,49 +219,143 @@ public class GameManager {
         System.out.println();
     }
 
-    // handleAiTurn ve getBestDirectionForAI metodlarına artık ihtiyaç yok (startGame içine gömüldü),
-    // ancak performSpecialAction hala kullanılıyor.
-
+    // --- ÖZEL YETENEK MANTIĞI ---
     private void performSpecialAction(Penguin p, Direction dir) {
+
         if (p instanceof RoyalPenguin) {
-            System.out.println(p.getSymbol() + " stops at an empty square using its special action.");
-            terrain.simulateSlide(p, dir, 1);
+            System.out.println(p.getSymbol() + " moves 1 square (Royal Walk).");
+            simulateLimitedSlide(p, dir, 1);
         }
         else if (p instanceof KingPenguin) {
             System.out.println(p.getSymbol() + " uses King Ability (Stop at 5).");
-            terrain.simulateSlide(p, dir, 5);
+            simulateLimitedSlide(p, dir, 5);
         }
         else if (p instanceof EmperorPenguin) {
             System.out.println(p.getSymbol() + " uses Emperor Ability (Stop at 3).");
-            terrain.simulateSlide(p, dir, 3);
+            simulateLimitedSlide(p, dir, 3);
         }
         else if (p instanceof RockhopperPenguin) {
             System.out.println(p.getSymbol() + " prepares to jump over hazard.");
 
-            ITerrainObject obstacle = terrain.checkNextCell(p, dir);
-            if (obstacle instanceof IHazard) {
-                int[] currentPos = terrain.getPosition(p);
-                int dRow=0, dCol=0;
-                switch(dir){case UP:dRow=-2;break;case DOWN:dRow=2;break;case LEFT:dCol=-2;break;case RIGHT:dCol=2;break;}
-                int landRow = currentPos[0]+dRow;
-                int landCol = currentPos[1]+dCol;
+            int dRow = 0, dCol = 0;
+            switch(dir){
+                case UP: dRow = -1; break;
+                case DOWN: dRow = 1; break;
+                case LEFT: dCol = -1; break;
+                case RIGHT: dCol = 1; break;
+            }
 
-                if(terrain.isOutOfBounds(landRow, landCol)) {
-                    System.out.println(p.getSymbol() + " jumped into water!");
+            int[] currentPos = terrain.getPosition(p);
+            if (currentPos == null) return;
+
+            int startR = currentPos[0];
+            int startC = currentPos[1];
+
+            // 1. Rotayı tara: Engel bulana kadar ilerle
+            ITerrainObject obstacle = null;
+            int foundR = -1, foundC = -1;
+
+            // Grid boyutu kadar (max 15 diyelim) tara
+            for (int dist = 1; dist < 15; dist++) {
+                int checkR = startR + (dRow * dist);
+                int checkC = startC + (dCol * dist);
+
+                if (terrain.isOutOfBounds(checkR, checkC)) break;
+
+                ITerrainObject obj = terrain.getObjectAt(checkR, checkC);
+
+                if (obj instanceof IHazard || obj instanceof Penguin) {
+                    obstacle = obj;
+                    foundR = checkR;
+                    foundC = checkC;
+                    break;
+                }
+                else if (obj instanceof Food) {
+                    // Yemek varsa zıplamayı iptal et, çünkü yemekte zaten duracak.
+                    break;
+                }
+            }
+
+            // 2. Eğer atlanacak bir engel bulunduysa
+            if (obstacle != null) {
+                int landR = foundR + dRow;
+                int landC = foundC + dCol;
+
+                if(terrain.isOutOfBounds(landR, landC)) {
+                    System.out.println(p.getSymbol() + " jumps over " + obstacle.getSymbol() + " but lands in water!");
                     p.eliminate();
-                    terrain.clearCell(currentPos[0], currentPos[1]);
-                } else if (terrain.getObjectAt(landRow, landCol) == null || terrain.getObjectAt(landRow, landCol) instanceof Food) {
-                    System.out.println(p.getSymbol() + " jumps over " + obstacle.getSymbol());
-                    ITerrainObject landingObj = terrain.getObjectAt(landRow, landCol);
-                    terrain.moveObjectAtomic(currentPos[0], currentPos[1], landRow, landCol);
-                    if(landingObj instanceof Food) ((Penguin)p).eatFood((Food)landingObj);
-                } else {
-                    System.out.println("Jump fail! Landing spot occupied.");
-                    terrain.simulateSlide(p, dir);
+                    terrain.clearCell(startR, startC);
+                }
+                else {
+                    ITerrainObject landingObj = terrain.getObjectAt(landR, landC);
+
+                    if (landingObj == null || landingObj instanceof Food) {
+                        System.out.println(p.getSymbol() + " jumps over " + obstacle.getSymbol());
+                        terrain.moveObjectAtomic(startR, startC, landR, landC);
+                        if(landingObj instanceof Food) ((Penguin)p).eatFood((Food)landingObj);
+                    } else {
+                        System.out.println("Jump fail! Landing spot occupied by " + landingObj.getSymbol());
+                        terrain.simulateSlide(p, dir);
+                    }
                 }
             } else {
-                System.out.println("Nothing to jump over. Wasted action.");
+                System.out.println("Nothing to jump over. Normal slide.");
                 terrain.simulateSlide(p, dir);
+            }
+        }
+    }
+
+    // --- YENİ: ADIM ADIM İLERLEME (FREN YETENEĞİ İÇİN) ---
+    private void simulateLimitedSlide(Penguin p, Direction dir, int maxSteps) {
+        int dRow = 0, dCol = 0;
+        switch(dir){
+            case UP: dRow = -1; break;
+            case DOWN: dRow = 1; break;
+            case LEFT: dCol = -1; break;
+            case RIGHT: dCol = 1; break;
+        }
+
+        for (int i = 0; i < maxSteps; i++) {
+            int[] currentPos = terrain.getPosition(p);
+            if (currentPos == null || !p.isActive()) break;
+
+            int r = currentPos[0];
+            int c = currentPos[1];
+
+            int nextR = r + dRow;
+            int nextC = c + dCol;
+
+            // 1. Duvar/Su kontrolü
+            if (terrain.isOutOfBounds(nextR, nextC)) {
+                System.out.println("Hit the wall/edge.");
+                break;
+            }
+
+            ITerrainObject nextObj = terrain.getObjectAt(nextR, nextC);
+
+            // 2. Boşsa İlerle
+            if (nextObj == null) {
+                terrain.moveObjectAtomic(r, c, nextR, nextC);
+            }
+            // 3. Yemek varsa İlerle, Ye ve Dur
+            else if (nextObj instanceof Food) {
+                terrain.moveObjectAtomic(r, c, nextR, nextC);
+                p.eatFood((Food)nextObj);
+                System.out.println(p.getSymbol() + " ate " + nextObj.getSymbol() + " and stopped.");
+                break;
+            }
+            // 4. Tehlike varsa Çarp ve Öl
+            else if (nextObj instanceof IHazard) {
+                System.out.println(p.getSymbol() + " hit a hazard (" + nextObj.getSymbol() + ")!");
+                terrain.moveObjectAtomic(r, c, nextR, nextC); // Önce git
+                p.eliminate();
+                terrain.clearCell(nextR, nextC);
+                break;
+            }
+            // 5. Başka engel varsa Çarp ve Dur
+            else {
+                System.out.println("Blocked by " + nextObj.getSymbol());
+                break;
             }
         }
     }
